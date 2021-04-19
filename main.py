@@ -2,7 +2,7 @@ import sys
 import webbrowser
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QMessageBox, QLabel, QMainWindow, QMenuBar
-from PyQt5.QtWidgets import QMenu, QAction, qApp, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout, QLineEdit, QHeaderView
+from PyQt5.QtWidgets import QMenu, QAction, qApp, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout, QLineEdit, QHeaderView, QFileDialog
 from PyQt5 import QtCore, Qt
 import json
 import ssl
@@ -55,9 +55,9 @@ class Window(QMainWindow):
         self.tableWidget.setHorizontalHeaderLabels(["Keep", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
         self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        #self.tableWidget.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.tableWidget.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        #self.tableWidget.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         self.tableWidget.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.tableWidget.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
         self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -129,12 +129,13 @@ class Window(QMainWindow):
                     if row == 0:
                         header.append(self.tableWidget.horizontalHeaderItem(col).text())
                 items.append(litems)
-        with open(f"/Users/kkroll1/Desktop/{self.textBox.text()}.tdt", "w+") as f:
+        with open(f"{QFileDialog.getSaveFileName(self, 'Save File')[0]}.tdt", "w+") as f:
             f.write("\t".join(header))
             f.write("\n")
             for it in items:
                 f.write("\t".join(it))
                 f.write("\n")
+
 
 
 
