@@ -9,9 +9,16 @@ search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pmc"
              "&tool=reevestool&email=kylekroll@outlook.com"
 pmc_ids = requests.get(search_url)
 pmc_ids = pmc_ids.json()
-for x in pmc_ids['esearchresult']['idlist']:
-    print(x)
+
 url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&retmode=json&tool=my_tool&email=my_email@example.com&id="
-detailed_url = f"{url}{pmc_ids['esearchresult']['idlist'][4]}"
+detailed_url = f"{url}{','.join(pmc_ids['esearchresult']['idlist'])}"
 details = requests.get(detailed_url).json()
-print(json.dumps(details, indent=4))
+for id in details['result']['uids']:
+    #authors = details['result'][id]['authors']
+    #authors = [x['name'].replace(" ",", ") for x in details['result'][id]['authors']]
+    #print(authors)
+    #print(details['result'][id]['title'])
+    for item in details['result'][id]['articleids']:
+        if item['idtype'] == 'doi':
+            print(item['value'])
+#print(json.dumps(details, indent=4))
