@@ -28,7 +28,7 @@ class Window(QMainWindow):
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.createGridLayout()
         self._createTableWidget()
-        tempButton = QPushButton("Testing")
+        tempButton = QPushButton("Save Selected Entried to File")
         tempButton.clicked.connect(self.get_pmc_info)
         self.centralWidget.layout().addWidget(tempButton)
         self.show()
@@ -128,7 +128,7 @@ class Window(QMainWindow):
                     litems.append(self.tableWidget.item(row, col).text())
                     if row == 0:
                         header.append(self.tableWidget.horizontalHeaderItem(col).text())
-            items.append(litems)
+                items.append(litems)
         with open(f"/Users/kkroll1/Desktop/{self.textBox.text()}.tdt", "w+") as f:
             f.write("\t".join(header))
             f.write("\n")
