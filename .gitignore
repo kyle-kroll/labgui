@@ -1,5 +1,5 @@
 *.sqlite3
-*.idea/
+.idea/
 dist/
 build/
 .eggs/
