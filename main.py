@@ -1,19 +1,17 @@
+import ssl
 import sys
 import webbrowser
 
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QMessageBox, QLabel, QMainWindow, QMenuBar
-from PyQt5.QtWidgets import QMenu, QAction, qApp, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout, QLineEdit, \
-    QHeaderView, QFileDialog
-from PyQt5 import QtCore, Qt
-import json
-import ssl
 import requests
-import time
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
+    QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, QLineEdit, QHeaderView, QFileDialog
 
 
 class Window(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.textBox = QLineEdit()
         self.title = "Reeves Lab - PMC Fetch"
         self.left = 10
         self.top = 10
@@ -21,24 +19,20 @@ class Window(QMainWindow):
         self.height = 600
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
-        self.initUI()
-        self._createMenuBar()
+        self.init_ui()
+        self._create_menu_bar()
 
-    def initUI(self):
+    def init_ui(self):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
-        self.createGridLayout()
-        self._createTableWidget()
-        tempButton = QPushButton("Save Selected Entried to File")
-        tempButton.clicked.connect(self.get_pmc_info)
-        self.centralWidget.layout().addWidget(tempButton)
+        self.create_grid_layout()
+        self._create_table_widget()
         self.show()
 
-    def createGridLayout(self):
+    def create_grid_layout(self):
         layout = QGridLayout()
         run_label = QLabel("Search Query")
         layout.addWidget(run_label, 0, 0)
-        self.textBox = QLineEdit()
         self.textBox.resize(25, 25)
         self.textBox.setStatusTip("Search PMC for this query.")
         layout.addWidget(self.textBox, 1, 0)
@@ -49,7 +43,7 @@ class Window(QMainWindow):
         layout.addWidget(searchButton)
         self.centralWidget.setLayout(layout)
 
-    def _createTableWidget(self):
+    def _create_table_widget(self):
         self.tableWidget = QTableWidget()
         self.tableWidget.setRowCount(1)
         self.tableWidget.setColumnCount(7)
@@ -65,15 +59,15 @@ class Window(QMainWindow):
         self.tableWidget.cellDoubleClicked.connect(self.open_link)
         self.centralWidget.layout().addWidget(self.tableWidget)
 
-    def _createMenuBar(self):
+    def _create_menu_bar(self):
         menuBar = self.menuBar()
         menuBar.setNativeMenuBar(False)
         # Creating file menu
         fileMenu = menuBar.addMenu("File")
-        openAct = QAction("Load DB", self)
-        openAct.setStatusTip("Load the Publication DB")
-        openAct.triggered.connect(self.load_db)
-        fileMenu.addAction(openAct)
+        saveAct = QAction("Save", self)
+        saveAct.setStatusTip("Save search results to file.")
+        saveAct.triggered.connect(self.save_results)
+        fileMenu.addAction(saveAct)
         # Create a menu item to exit the application
         exitAct = QAction("&Exit", self)
         exitAct.setShortcut("Ctrl+Q")
@@ -94,7 +88,8 @@ class Window(QMainWindow):
         pmc_ids = pmc_ids.json()
         ids = pmc_ids['esearchresult']['idlist']
         self.tableWidget.setRowCount(len(ids))
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&retmode=json&tool=my_tool&email=my_email@example.com&id="
+        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc" \
+              "&retmode=json&tool=my_tool&email=my_email@example.com&id="
         detailed_url = f"{url}{','.join(pmc_ids['esearchresult']['idlist'])}"
         details = requests.get(detailed_url).json()
         for i in range(0, len(details['result']['uids'])):
@@ -118,8 +113,7 @@ class Window(QMainWindow):
         if item.startswith("https"):
             webbrowser.open(item)
 
-    def get_pmc_info(self, url):
-
+    def save_results(self):
         header = []
         items = []
         for row in range(0, self.tableWidget.rowCount()):
@@ -130,7 +124,7 @@ class Window(QMainWindow):
                     if row == 0:
                         header.append(self.tableWidget.horizontalHeaderItem(col).text())
                 items.append(litems)
-        with open(f"{QFileDialog.getSaveFileName(self, 'Save File')[0]}.tdt", "w+") as f:
+        with open(f"{QFileDialog.getSaveFileName(None, 'Title', '', 'Tab-delimited text (*.tdt)')[0]}", "w+") as f:
             f.write("\t".join(header))
             f.write("\n")
             for it in items:
