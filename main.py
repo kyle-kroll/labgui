@@ -2,7 +2,8 @@ import sys
 import webbrowser
 
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QMessageBox, QLabel, QMainWindow, QMenuBar
-from PyQt5.QtWidgets import QMenu, QAction, qApp, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout, QLineEdit, QHeaderView, QFileDialog
+from PyQt5.QtWidgets import QMenu, QAction, qApp, QTableWidget, QTableWidgetItem, QGroupBox, QGridLayout, QLineEdit, \
+    QHeaderView, QFileDialog
 from PyQt5 import QtCore, Qt
 import json
 import ssl
@@ -55,9 +56,9 @@ class Window(QMainWindow):
         self.tableWidget.setHorizontalHeaderLabels(["Keep", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
         self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        #self.tableWidget.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        # self.tableWidget.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.tableWidget.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        #self.tableWidget.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        # self.tableWidget.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
         self.tableWidget.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
         self.tableWidget.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
         self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -92,7 +93,7 @@ class Window(QMainWindow):
         pmc_ids = requests.get(search_url)
         pmc_ids = pmc_ids.json()
         ids = pmc_ids['esearchresult']['idlist']
-        self.tableWidget.setRowCount( len(ids) )
+        self.tableWidget.setRowCount(len(ids))
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&retmode=json&tool=my_tool&email=my_email@example.com&id="
         detailed_url = f"{url}{','.join(pmc_ids['esearchresult']['idlist'])}"
         details = requests.get(detailed_url).json()
@@ -105,7 +106,7 @@ class Window(QMainWindow):
             self.tableWidget.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
             self.tableWidget.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
             self.tableWidget.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
-            authors = [x['name'].replace(" ",", ") for x in details['result'][id]['authors']]
+            authors = [x['name'].replace(" ", ", ") for x in details['result'][id]['authors']]
             self.tableWidget.setItem(i, 4, QTableWidgetItem("., ".join(authors)))
             self.tableWidget.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
             for item in details['result'][id]['articleids']:
@@ -135,10 +136,6 @@ class Window(QMainWindow):
             for it in items:
                 f.write("\t".join(it))
                 f.write("\n")
-
-
-
-
 
 
 if __name__ == "__main__":
