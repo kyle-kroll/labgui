@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
 class Window(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.db_table = QTableWidget()
         self.textBox = QLineEdit()
         self.title = "Reeves Lab - PMC Fetch"
         self.left = 10
@@ -196,9 +197,12 @@ class Window(QMainWindow):
     '''
 
     def open_link(self, row, column):
-        item = self.tableWidget.item(row, column).text()
-        if item.startswith("https"):
-            webbrowser.open(item)
+        try:
+            item = self.tableWidget.item(row, column).text()
+            if item.startswith("https"):
+                webbrowser.open(item)
+        except AttributeError:
+            pass
 
     '''
         Check Uncheck
@@ -284,17 +288,43 @@ class Window(QMainWindow):
 
     def load_db(self):
         open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
+        items = []
         if open_db != '':
             con = sqlite3.connect(open_db)
             con.row_factory = sqlite3.Row
             cur = con.cursor()
-            cur.execute('''SELECT * FROM PUBS''')
+            cur.execute('''SELECT * FROM PUBLICATIONS''')
 
             rows = cur.fetchall()
             for row in rows:
-                print(dict(row))
+                items.append(dict(row))
             cur.close()
             con.close()
+        self.db_table.setRowCount(len(items))
+        self.db_table.setColumnCount(len(items[0].keys()))
+        self.db_table.setHorizontalHeaderLabels(items[0].keys())
+
+        # Some of the table components should be allowed to stretch, like title
+        # Others should expand to fit the contents
+        # Others should expand to fit the contents
+
+        # Disable editing of cells
+        self.db_table.setEditTriggers(QTableWidget.NoEditTriggers)
+        # Link function to double click of cell - if the user double clicks the cell with the DOI link
+        # it opens the link in the browser
+        self.db_table.cellDoubleClicked.connect(self.open_link)
+        self.centralWidget.layout().addWidget(self.db_table, 4, 0, 1, 3)
+
+        for i in range(0, len(items)):
+            self.db_table.setItem(i, 0, QTableWidgetItem(str(items[i]['PMC'])))
+            self.db_table.setItem(i, 1, QTableWidgetItem(items[i]['TITLE']))
+            self.db_table.setItem(i, 2, QTableWidgetItem(items[i]['JOURNAL']))
+            self.db_table.setItem(i, 3, QTableWidgetItem(items[i]['AUTHORS']))
+            self.db_table.setItem(i, 4, QTableWidgetItem(items[i]['DATE']))
+            self.db_table.setItem(i, 5, QTableWidgetItem(items[i]['DOI']))
+
+
+
 
     def export_db(self):
         save_db = QFileDialog.getSaveFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
