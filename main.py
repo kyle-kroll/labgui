@@ -2,7 +2,6 @@ import ssl
 import sys
 import webbrowser
 import html
-
 import requests
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
@@ -31,6 +30,45 @@ class Window(QMainWindow):
         self.create_grid_layout()
         self._create_table_widget()
         self.show()
+
+    '''
+        Defining the menu bar
+        Currently contains two items:
+            1. File
+                - Save search results to tab-delimited text file
+            2. Exit the application
+    '''
+
+    def _create_menu_bar(self):
+        menuBar = self.menuBar()
+        menuBar.setNativeMenuBar(False)
+
+        # Creating file menu
+        fileMenu = menuBar.addMenu("File")
+
+        # Reset program
+        reset_app = QAction("Reset", self)
+        reset_app.setShortcut("Ctrl+R")
+        reset_app.setStatusTip("Reset application to default. | Ctrl (⌘) + R")
+        fileMenu.triggered.connect(self.reset_application)
+        fileMenu.addAction(reset_app)
+
+        # Save button
+        saveAct = QAction("Save", self)
+        saveAct.setShortcut("Ctrl+S")
+        saveAct.setStatusTip("Save search results to file. | Ctrl (⌘) + S")
+        saveAct.triggered.connect(self.save_results)
+        fileMenu.addAction(saveAct)
+
+        # Create a menu item to exit the application
+        exitAct = QAction("&Exit", self)
+        exitAct.setShortcut("Ctrl+Q")
+        exitAct.setStatusTip("Exit application | Ctrl (⌘) + Q")
+        exitAct.triggered.connect(qApp.quit)
+
+        # Start a status bar at the bottom of the application
+        self.statusBar()
+        menuBar.addAction(exitAct)
 
     def create_grid_layout(self):
         layout = QGridLayout()
@@ -76,60 +114,20 @@ class Window(QMainWindow):
         self.centralWidget.layout().addWidget(self.tableWidget, 3, 0, 1, 3)
 
     '''
-        Defining the menu bar
-        Currently contains two items:
-            1. File
-                - Save search results to tab-delimited text file
-            2. Exit the application
-    '''
-
-    def _create_menu_bar(self):
-        menuBar = self.menuBar()
-        menuBar.setNativeMenuBar(False)
-
-        # Creating file menu
-        fileMenu = menuBar.addMenu("File")
-
-        # Reset program
-        reset_app = QAction("Reset", self)
-        reset_app.setShortcut("Ctrl+R")
-        reset_app.setStatusTip("Reset application to default. | Ctrl (⌘) + R")
-        fileMenu.triggered.connect(self.reset_application)
-        fileMenu.addAction(reset_app)
-
-
-        # Save button
-        saveAct = QAction("Save", self)
-        saveAct.setShortcut("Ctrl+S")
-        saveAct.setStatusTip("Save search results to file. | Ctrl (⌘) + S")
-        saveAct.triggered.connect(self.save_results)
-        fileMenu.addAction(saveAct)
-
-        # Create a menu item to exit the application
-        exitAct = QAction("&Exit", self)
-        exitAct.setShortcut("Ctrl+Q")
-        exitAct.setStatusTip("Exit application | Ctrl (⌘) + Q")
-        exitAct.triggered.connect(qApp.quit)
-
-        # Start a status bar at the bottom of the application
-        self.statusBar()
-        menuBar.addAction(exitAct)
-
-
-    '''
         Reset Application
         Resets application to default settings.
     '''
+
     def reset_application(self):
         self.textBox.setText("")
         self.centralWidget.layout().removeWidget(self.tableWidget)
         self._create_table_widget()
 
-
     '''
         Search PMC Function
         Take user input from search bar and use that to search PMC database
     '''
+
     def search_pmc(self):
         if hasattr(ssl, "_create_unverified_context"):
             ssl._create_default_https_context = ssl._create_unverified_context
@@ -140,27 +138,35 @@ class Window(QMainWindow):
         pmc_ids = pmc_ids.json()
         ids = pmc_ids['esearchresult']['idlist']
         self.tableWidget.setRowCount(len(ids))
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc" \
-              "&retmode=json&tool=my_tool&email=my_email@example.com&id="
-        detailed_url = f"{url}{','.join(pmc_ids['esearchresult']['idlist'])}"
-        details = requests.get(detailed_url).json()
-        for i in range(0, len(details['result']['uids'])):
-            id = details['result']['uids'][i]
-            chkBoxItem = QTableWidgetItem()
-            chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
-            chkBoxItem.setCheckState(QtCore.Qt.Checked)
-            self.tableWidget.setItem(i, 0, chkBoxItem)
-            self.tableWidget.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
-            self.tableWidget.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
-            self.tableWidget.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
-            # authors = [x['name'].replace(" ", ", ") for x in details['result'][id]['authors']]
-            authors = [x['name'] for x in details['result'][id]['authors']]
-            self.tableWidget.setItem(i, 4, QTableWidgetItem(", ".join(authors)))
-            self.tableWidget.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
-            for item in details['result'][id]['articleids']:
-                if item['idtype'] == 'doi':
-                    self.tableWidget.setItem(i, 6, QTableWidgetItem(f"https://doi.org/{item['value']}"))
+        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&retmode=json&tool=reevestool&email=kylekroll@outlook,com&id="
+        n = 200
+        pmc_ids = pmc_ids['esearchresult']['idlist']
+        chunks = [pmc_ids[i:i + n] for i in range(0, len(pmc_ids), n)]
+        i = 0
+        for chunk in chunks:
+            detailed_url = url + ','.join(chunk)
+            details = requests.post(detailed_url)
+            details = details.json()
+            for x in chunk:
+                # id = details['result']['uids'][i]
+                id = x
+                chkBoxItem = QTableWidgetItem()
+                chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+                chkBoxItem.setCheckState(QtCore.Qt.Checked)
+                self.tableWidget.setItem(i, 0, chkBoxItem)
+                self.tableWidget.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
+                self.tableWidget.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
+                self.tableWidget.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
+                # authors = [x['name'].replace(" ", ", ") for x in details['result'][id]['authors']]
+                authors = [x['name'] for x in details['result'][id]['authors']]
+                self.tableWidget.setItem(i, 4, QTableWidgetItem(", ".join(authors)))
+                self.tableWidget.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
+                for item in details['result'][id]['articleids']:
+                    if item['idtype'] == 'doi':
+                        self.tableWidget.setItem(i, 6, QTableWidgetItem(f"https://doi.org/{item['value']}"))
+                i = i + 1
         self.tableWidget.sortItems(3, QtCore.Qt.DescendingOrder)
+        self.statusBar().showMessage("Search complete.")
 
     '''
         Open DOI link
