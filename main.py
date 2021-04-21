@@ -6,7 +6,8 @@ import html
 import requests
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
-    QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, QLineEdit, QHeaderView, QFileDialog
+    QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
+    QLineEdit, QHeaderView, QFileDialog, QMessageBox
 
 
 class Window(QMainWindow):
@@ -55,7 +56,7 @@ class Window(QMainWindow):
     def _create_table_widget(self):
         # Initialize the table with a single row and the 7 columns we have
         self.tableWidget = QTableWidget()
-        self.tableWidget.setRowCount(1)
+        self.tableWidget.setRowCount(0)
         self.tableWidget.setColumnCount(7)
         self.tableWidget.setHorizontalHeaderLabels(["Keep", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
 
@@ -88,6 +89,16 @@ class Window(QMainWindow):
 
         # Creating file menu
         fileMenu = menuBar.addMenu("File")
+
+        # Reset program
+        reset_app = QAction("Reset", self)
+        reset_app.setShortcut("Ctrl+R")
+        reset_app.setStatusTip("Reset application to default. | Ctrl (⌘) + R")
+        fileMenu.triggered.connect(self.reset_application)
+        fileMenu.addAction(reset_app)
+
+
+        # Save button
         saveAct = QAction("Save", self)
         saveAct.setShortcut("Ctrl+S")
         saveAct.setStatusTip("Save search results to file. | Ctrl (⌘) + S")
@@ -104,11 +115,21 @@ class Window(QMainWindow):
         self.statusBar()
         menuBar.addAction(exitAct)
 
+
+    '''
+        Reset Application
+        Resets application to default settings.
+    '''
+    def reset_application(self):
+        self.textBox.setText("")
+        self.centralWidget.layout().removeWidget(self.tableWidget)
+        self._create_table_widget()
+
+
     '''
         Search PMC Function
         Take user input from search bar and use that to search PMC database
     '''
-
     def search_pmc(self):
         if hasattr(ssl, "_create_unverified_context"):
             ssl._create_default_https_context = ssl._create_unverified_context
@@ -170,24 +191,27 @@ class Window(QMainWindow):
     '''
 
     def save_results(self):
-        header = []
-        items = []
-        save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Tab-delimited text (*.tdt)')[0]
-        for row in range(0, self.tableWidget.rowCount()):
-            litems = []
-            if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
-                for col in range(1, self.tableWidget.columnCount()):
-                    litems.append(self.tableWidget.item(row, col).text())
-                    if row == 0:
-                        header.append(self.tableWidget.horizontalHeaderItem(col).text())
-                items.append(litems)
-        if save_file != '':
-            with open(f"{save_file}", "w+") as f:
-                f.write("\t".join(header))
-                f.write("\n")
-                for it in items:
-                    f.write("\t".join(it))
+        if self.tableWidget.rowCount() >= 1:
+            header = []
+            items = []
+            save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Tab-delimited text (*.tdt)')[0]
+            for row in range(0, self.tableWidget.rowCount()):
+                litems = []
+                if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
+                    for col in range(1, self.tableWidget.columnCount()):
+                        litems.append(self.tableWidget.item(row, col).text())
+                        if row == 0:
+                            header.append(self.tableWidget.horizontalHeaderItem(col).text())
+                    items.append(litems)
+            if save_file != '':
+                with open(f"{save_file}", "w+") as f:
+                    f.write("\t".join(header))
                     f.write("\n")
+                    for it in items:
+                        f.write("\t".join(it))
+                        f.write("\n")
+        else:
+            QMessageBox.about(self, "", "Please run query before trying to save!")
 
 
 if __name__ == "__main__":
