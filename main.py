@@ -7,7 +7,7 @@ import aiohttp
 import asyncio
 import sqlite3
 import os
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
     QLineEdit, QHeaderView, QFileDialog, QMessageBox
@@ -17,6 +17,7 @@ class Window(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.db_table = QTableWidget()
+        self.tableWidget = QTableWidget()
         self.textBox = QLineEdit()
         self.title = "Reeves Lab - PMC Fetch"
         self.left = 10
@@ -28,6 +29,12 @@ class Window(QMainWindow):
         self.setCentralWidget(self.centralWidget)
         self.init_ui()
         self._create_menu_bar()
+
+    def closeEvent(self, *args, **kwargs):
+        try:
+            self.con.close()
+        except AttributeError:
+            pass
 
     def init_ui(self):
         self.setWindowTitle(self.title)
@@ -84,12 +91,14 @@ class Window(QMainWindow):
         load_db_act.setStatusTip("Load DB | Ctrl (⌘) + O")
         load_db_act.triggered.connect(self.load_db)
         menuBar.addAction(load_db_act)
+
         # Create a menu item to exit the application
         exitAct = QAction("&Exit", self)
         exitAct.setShortcut("Ctrl+Q")
         exitAct.setStatusTip("Exit application | Ctrl (⌘) + Q")
         exitAct.triggered.connect(qApp.quit)
         menuBar.addAction(exitAct)
+
         # Start a status bar at the bottom of the application
         self.statusBar()
 
@@ -116,7 +125,6 @@ class Window(QMainWindow):
 
     def _create_table_widget(self, row_count, col_count, header_labels):
         # Initialize the table with a single row and the 7 columns we have
-        self.tableWidget = QTableWidget()
         self.tableWidget.setRowCount(row_count)
         self.tableWidget.setColumnCount(col_count)
         self.tableWidget.setHorizontalHeaderLabels(header_labels)
@@ -131,6 +139,7 @@ class Window(QMainWindow):
 
         # Disable editing of cells
         self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
+
         # Link function to double click of cell - if the user double clicks the cell with the DOI link
         # it opens the link in the browser
         self.tableWidget.cellDoubleClicked.connect(self.open_link)
@@ -290,31 +299,54 @@ class Window(QMainWindow):
         open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
         items = []
         if open_db != '':
-            con = sqlite3.connect(open_db)
-            con.row_factory = sqlite3.Row
-            cur = con.cursor()
+            self.con = sqlite3.connect(open_db)
+            self.con.row_factory = sqlite3.Row
+            cur = self.con.cursor()
             cur.execute('''SELECT * FROM PUBLICATIONS''')
 
             rows = cur.fetchall()
             for row in rows:
                 items.append(dict(row))
             cur.close()
-            con.close()
         self.db_table.setRowCount(len(items))
         self.db_table.setColumnCount(len(items[0].keys()))
         self.db_table.setHorizontalHeaderLabels(items[0].keys())
 
         # Some of the table components should be allowed to stretch, like title
         # Others should expand to fit the contents
-        # Others should expand to fit the contents
+        self.db_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
+        self.db_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Interactive)
+        self.db_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
 
         # Disable editing of cells
         self.db_table.setEditTriggers(QTableWidget.NoEditTriggers)
         # Link function to double click of cell - if the user double clicks the cell with the DOI link
         # it opens the link in the browser
         self.db_table.cellDoubleClicked.connect(self.open_link)
-        self.centralWidget.layout().addWidget(self.db_table, 4, 0, 1, 3)
 
+        self.centralWidget.layout().addWidget(QLabel("Database"), 4, 0)
+        insert_value_button = QPushButton("Insert ↓")
+        insert_value_button.clicked.connect(self.insert_values)
+        self.centralWidget.layout().addWidget(insert_value_button, 4, 1)
+        self.centralWidget.layout().addWidget(self.db_table, 5, 0, 1, 3)
+        self.update_db_table()
+
+
+
+    def update_db_table(self):
+        items = []
+        self.con.row_factory = sqlite3.Row
+        cur = self.con.cursor()
+        cur.execute('''SELECT * FROM PUBLICATIONS''')
+
+        rows = cur.fetchall()
+        for row in rows:
+            items.append(dict(row))
+        cur.close()
+        self.db_table.setRowCount(len(items))
         for i in range(0, len(items)):
             self.db_table.setItem(i, 0, QTableWidgetItem(str(items[i]['PMC'])))
             self.db_table.setItem(i, 1, QTableWidgetItem(items[i]['TITLE']))
@@ -322,9 +354,32 @@ class Window(QMainWindow):
             self.db_table.setItem(i, 3, QTableWidgetItem(items[i]['AUTHORS']))
             self.db_table.setItem(i, 4, QTableWidgetItem(items[i]['DATE']))
             self.db_table.setItem(i, 5, QTableWidgetItem(items[i]['DOI']))
+        self.db_table.sortItems(4, QtCore.Qt.DescendingOrder)
 
-
-
+    def insert_values(self):
+        if not self.con:
+            print("Error: Connection closed to DB!")
+            sys.exit()
+        else:
+            items = []
+            for row in range(0, self.tableWidget.rowCount()):
+                litems = {}
+                if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
+                    litems['PMC'] = self.tableWidget.item(row, 1).text()
+                    litems['TITLE'] = self.tableWidget.item(row, 2).text()
+                    litems['DATE'] = self.tableWidget.item(row, 3).text()
+                    litems['AUTHORS'] = self.tableWidget.item(row, 4).text()
+                    litems['JOURNAL'] = self.tableWidget.item(row, 5).text()
+                    litems['DOI'] = self.tableWidget.item(row, 6).text()
+                    items.append(litems)
+            for item in items:
+                self.con.execute('INSERT OR IGNORE INTO PUBLICATIONS '
+                                 '(PMC, TITLE, DATE, AUTHORS, JOURNAL, DOI) '
+                                 'VALUES (?, ?, ?, ?, ?, ?)',
+                                 (item['PMC'], item['TITLE'], item['DATE'],
+                                  item['AUTHORS'], item['JOURNAL'], item['DOI']))
+            self.con.commit()
+            self.update_db_table()
 
     def export_db(self):
         save_db = QFileDialog.getSaveFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
@@ -349,7 +404,7 @@ class Window(QMainWindow):
                         litems['AUTHORS'] = self.tableWidget.item(row, 4).text()
                         litems['JOURNAL'] = self.tableWidget.item(row, 5).text()
                         litems['DOI'] = self.tableWidget.item(row, 6).text()
-                    items.append(litems)
+                        items.append(litems)
                 for item in items:
                     con.execute('INSERT OR IGNORE INTO PUBLICATIONS '
                                 '(PMC, TITLE, DATE, AUTHORS, JOURNAL, DOI) '
