@@ -5,6 +5,7 @@ import html
 import requests
 import aiohttp
 import asyncio
+import sqlite3
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
@@ -30,7 +31,7 @@ class Window(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.create_grid_layout()
-        self._create_table_widget()
+        self._create_table_widget(0, 7, ["Keep", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
         self.show()
 
     '''
@@ -69,15 +70,22 @@ class Window(QMainWindow):
         export_act.triggered.connect(self.export_bib)
         fileMenu.addAction(export_act)
 
+
+        # Menu item for loading DB
+        load_db_act = QAction("&Load", self)
+        load_db_act.setShortcut("Ctrl+O")
+        load_db_act.setStatusTip("Load DB | Ctrl (⌘) + O")
+        load_db_act.triggered.connect(self.load_db)
+        menuBar.addAction(load_db_act)
         # Create a menu item to exit the application
         exitAct = QAction("&Exit", self)
         exitAct.setShortcut("Ctrl+Q")
         exitAct.setStatusTip("Exit application | Ctrl (⌘) + Q")
         exitAct.triggered.connect(qApp.quit)
-
+        menuBar.addAction(exitAct)
         # Start a status bar at the bottom of the application
         self.statusBar()
-        menuBar.addAction(exitAct)
+
 
     def create_grid_layout(self):
         layout = QGridLayout()
@@ -100,12 +108,12 @@ class Window(QMainWindow):
 
         self.centralWidget.setLayout(layout)
 
-    def _create_table_widget(self):
+    def _create_table_widget(self, row_count, col_count, header_labels):
         # Initialize the table with a single row and the 7 columns we have
         self.tableWidget = QTableWidget()
-        self.tableWidget.setRowCount(0)
-        self.tableWidget.setColumnCount(7)
-        self.tableWidget.setHorizontalHeaderLabels(["Keep", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
+        self.tableWidget.setRowCount(row_count)
+        self.tableWidget.setColumnCount(col_count)
+        self.tableWidget.setHorizontalHeaderLabels(header_labels)
 
         # Some of the table components should be allowed to stretch, like title
         # Others should expand to fit the contents
@@ -268,6 +276,26 @@ class Window(QMainWindow):
         async with aiohttp.ClientSession() as session:
             ret = await asyncio.gather(*[self.async_get(url, session) for url in urls])
             return ret
+
+    def load_db(self):
+        con = sqlite3.connect('publications.sqlite3')
+        con.row_factory = sqlite3.Row
+        cur = con.cursor()
+        cur.execute('''SELECT * FROM PUBS''')
+
+        rows = cur.fetchall()
+        for row in rows:
+            print(dict(row))
+        # Initialize the table with a single row and the 7 columns we have
+        self.tableWidget2 = QTableWidget()
+        self.tableWidget2.setRowCount(10)
+        self.tableWidget2.setColumnCount(10)
+        self.tableWidget2.setHorizontalHeaderLabels(['Test'])
+
+        # Disable editing of cells
+        self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.centralWidget.layout().addWidget(QLabel("Database"), 4, 0, 1, 3)
+        self.centralWidget.layout().addWidget(self.tableWidget2, 5, 0, 1, 3)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
