@@ -278,24 +278,18 @@ class Window(QMainWindow):
             return ret
 
     def load_db(self):
-        con = sqlite3.connect('publications.sqlite3')
-        con.row_factory = sqlite3.Row
-        cur = con.cursor()
-        cur.execute('''SELECT * FROM PUBS''')
+        open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
+        if open_db != '':
+            con = sqlite3.connect(open_db)
+            con.row_factory = sqlite3.Row
+            cur = con.cursor()
+            cur.execute('''SELECT * FROM PUBS''')
 
-        rows = cur.fetchall()
-        for row in rows:
-            print(dict(row))
-        # Initialize the table with a single row and the 7 columns we have
-        self.tableWidget2 = QTableWidget()
-        self.tableWidget2.setRowCount(10)
-        self.tableWidget2.setColumnCount(10)
-        self.tableWidget2.setHorizontalHeaderLabels(['Test'])
-
-        # Disable editing of cells
-        self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.centralWidget.layout().addWidget(QLabel("Database"), 4, 0, 1, 3)
-        self.centralWidget.layout().addWidget(self.tableWidget2, 5, 0, 1, 3)
+            rows = cur.fetchall()
+            for row in rows:
+                print(dict(row))
+            cur.close()
+            con.close()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
