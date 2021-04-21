@@ -3,6 +3,8 @@ import sys
 import webbrowser
 import html
 import requests
+import aiohttp
+import asyncio
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
@@ -47,18 +49,25 @@ class Window(QMainWindow):
         fileMenu = menuBar.addMenu("File")
 
         # Reset program
-        reset_app = QAction("Reset", self)
+        reset_app = QAction("&Reset", self)
         reset_app.setShortcut("Ctrl+R")
         reset_app.setStatusTip("Reset application to default. | Ctrl (⌘) + R")
-        fileMenu.triggered.connect(self.reset_application)
+        reset_app.triggered.connect(self.reset_application)
         fileMenu.addAction(reset_app)
 
         # Save button
-        saveAct = QAction("Save", self)
+        saveAct = QAction("&Save", self)
         saveAct.setShortcut("Ctrl+S")
         saveAct.setStatusTip("Save search results to file. | Ctrl (⌘) + S")
         saveAct.triggered.connect(self.save_results)
         fileMenu.addAction(saveAct)
+
+        # Export button
+        export_act = QAction("&Export", self)
+        export_act.setShortcut("Ctrl+E")
+        export_act.setStatusTip("Export selected results to Bibtex | Ctrl (⌘) + E")
+        export_act.triggered.connect(self.export_bib)
+        fileMenu.addAction(export_act)
 
         # Create a menu item to exit the application
         exitAct = QAction("&Exit", self)
@@ -219,6 +228,46 @@ class Window(QMainWindow):
         else:
             QMessageBox.about(self, "", "Please run query before trying to save!")
 
+    '''
+        Export to Bibtex
+        Take the selected references and export to Bibtex based on DOI
+    '''
+    def export_bib(self):
+        self.statusBar().showMessage("Generating Bibtex")
+        if self.tableWidget.rowCount() >= 1:
+            items = self.get_bibs()
+            save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Bibtex (*.bib)')[0]
+            if save_file != '':
+                with open(f"{save_file}", "w+") as f:
+                    for item in items:
+                        f.write(item + "\n")
+        else:
+            QMessageBox.about(self, "", "Please run query before trying to save!")
+
+    def get_bibs(self):
+        websites = []
+        for row in range(0, self.tableWidget.rowCount()):
+            if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
+                url = "/".join(self.tableWidget.item(row, 6).text().split("/")[3:5])
+                url = f"http://api.crossref.org/works/{url}/transform/application/x-bibtex"
+                websites.append(url)
+        urls = websites
+        items = asyncio.run(self.async_main(urls))
+        return items
+
+    async def async_get(self, url, session):
+        try:
+            async with session.get(url=url) as response:
+                resp = await response.read()
+                return resp.decode()
+        except Exception as e:
+            print("Unable to get url {} due to {}.".format(url, e.__class__))
+
+
+    async def async_main(self, urls):
+        async with aiohttp.ClientSession() as session:
+            ret = await asyncio.gather(*[self.async_get(url, session) for url in urls])
+            return ret
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
