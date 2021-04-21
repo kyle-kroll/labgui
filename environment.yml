@@ -26,12 +26,19 @@ dependencies:
     - altgraph==0.17
     - beautifulsoup4==4.9.3
     - bs4==0.0.1
+    - chardet==4.0.0
     - feedparser==6.0.2
+    - future==0.18.2
+    - idna==2.10
     - macholib==1.14
     - modulegraph==0.18
+    - pefile==2019.4.18
     - py2app==0.24
+    - pyinstaller==3.4
     - pyqt5==5.15.4
     - pyqt5-qt5==5.15.2
     - pyqt5-sip==12.8.1
+    - requests==2.25.1
     - sgmllib3k==1.0.0
     - soupsieve==2.2.1
+    - urllib3==1.26.4
