@@ -16,9 +16,9 @@ n = 200
 chunks = [pmc_ids[i:i + n] for i in range(0, len(pmc_ids), n)]
 for chunk in chunks:
     detailed_url = url + ",".join(chunk)
-    print(detailed_url)
     details = requests.post(detailed_url).json()
-    #print(json.dumps(details, indent=4))
+
+print(requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=7411078").text)
 
 
 

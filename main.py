@@ -10,7 +10,8 @@ import os
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
-    QLineEdit, QHeaderView, QFileDialog, QMessageBox
+    QLineEdit, QHeaderView, QFileDialog, QMessageBox, QDialog, QVBoxLayout, QScrollArea, QSizePolicy
+import xml.etree.ElementTree as ET
 
 
 class Window(QMainWindow):
@@ -210,6 +211,8 @@ class Window(QMainWindow):
             item = self.tableWidget.item(row, column).text()
             if item.startswith("https"):
                 webbrowser.open(item)
+            else:
+                help_window(self.tableWidget.item(row, 1).text())
         except AttributeError:
             pass
 
@@ -334,8 +337,6 @@ class Window(QMainWindow):
         self.centralWidget.layout().addWidget(self.db_table, 5, 0, 1, 3)
         self.update_db_table()
 
-
-
     def update_db_table(self):
         items = []
         self.con.row_factory = sqlite3.Row
@@ -415,6 +416,34 @@ class Window(QMainWindow):
                 con.close()
             else:
                 raise Exception("Error: DB file already exists. Please choose a new file.")
+
+
+def help_window(id):
+    # If you pass a parent (self) will block the Main Window,
+    # and if you do not pass both will be independent,
+    # I recommend you try both cases.
+    req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + id).content
+    tree = ET.ElementTree(ET.fromstring(req))
+    root = tree.getroot()
+    all_text = root.findall('.//abstract/p')
+    abstract = ""
+    for texts in all_text:
+        abstract = "".join(texts.itertext())
+
+    abstract_label = QLabel(abstract)
+    abstract_label.setWordWrap(True)
+    abstract_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+    widget = QDialog()
+    layout = QVBoxLayout()
+
+    test = QScrollArea()
+    test.setWidget(abstract_label)
+
+    layout.addWidget(test)
+    widget.setLayout(layout)
+    widget.resize(abstract_label.width() + 50, abstract_label.height() + 50)
+    widget.setWindowTitle("Abstract")
+    widget.exec_()
 
 
 if __name__ == "__main__":
