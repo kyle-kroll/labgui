@@ -212,7 +212,10 @@ class Window(QMainWindow):
             if item.startswith("https"):
                 webbrowser.open(item)
             else:
-                help_window(self.tableWidget.item(row, 1).text())
+                pmc = self.tableWidget.item(row, 1).text()
+                auths = self.tableWidget.item(row, 4).text()
+                title = self.tableWidget.item(row, 2).text()
+                self.help_window(pmc, auths, title)
         except AttributeError:
             pass
 
@@ -418,32 +421,37 @@ class Window(QMainWindow):
                 raise Exception("Error: DB file already exists. Please choose a new file.")
 
 
-def help_window(id):
-    # If you pass a parent (self) will block the Main Window,
-    # and if you do not pass both will be independent,
-    # I recommend you try both cases.
-    req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + id).content
-    tree = ET.ElementTree(ET.fromstring(req))
-    root = tree.getroot()
-    all_text = root.findall('.//abstract/p')
-    abstract = ""
-    for texts in all_text:
-        abstract = "".join(texts.itertext())
+    def help_window(self, pmc, authors, title):
+        # If you pass a parent (self) will block the Main Window,
+        # and if you do not pass both will be independent,
+        # I recommend you try both cases.
+        req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + pmc).content
+        tree = ET.ElementTree(ET.fromstring(req))
+        root = tree.getroot()
+        all_text = root.findall('.//abstract/p')
+        abstract = ""
+        for texts in all_text:
+            abstract = "".join(texts.itertext())
 
-    abstract_label = QLabel(abstract)
-    abstract_label.setWordWrap(True)
-    abstract_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-    widget = QDialog()
-    layout = QVBoxLayout()
+        abstract_label = QLabel(abstract)
+        abstract_label.setWordWrap(True)
+        abstract_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
+        widget = QDialog(self)
+        layout = QVBoxLayout()
+        auths = authors.split(",")[0] + " et al."
+        layout.addWidget(QLabel("Title: " + title))
+        layout.addWidget(QLabel("Authors: " + authors))
 
-    test = QScrollArea()
-    test.setWidget(abstract_label)
+        test = QScrollArea()
+        test.setWidget(abstract_label)
 
-    layout.addWidget(test)
-    widget.setLayout(layout)
-    widget.resize(abstract_label.width() + 50, abstract_label.height() + 50)
-    widget.setWindowTitle("Abstract")
-    widget.exec_()
+        layout.addWidget(test)
+
+        widget.setLayout(layout)
+        widget.resize(abstract_label.width() + 50, abstract_label.height() + 50)
+
+        widget.setWindowTitle("Abstract")
+        widget.show()
 
 
 if __name__ == "__main__":
