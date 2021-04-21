@@ -6,6 +6,7 @@ import requests
 import aiohttp
 import asyncio
 import sqlite3
+import os
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
@@ -64,12 +65,17 @@ class Window(QMainWindow):
         fileMenu.addAction(saveAct)
 
         # Export button
-        export_act = QAction("&Export", self)
-        export_act.setShortcut("Ctrl+E")
-        export_act.setStatusTip("Export selected results to Bibtex | Ctrl (⌘) + E")
+        export_menu = fileMenu.addMenu("Export")
+        export_act = QAction("&Bibtex", self)
+        export_act.setStatusTip("Export selected results to Bibtex")
         export_act.triggered.connect(self.export_bib)
-        fileMenu.addAction(export_act)
+        export_menu.addAction(export_act)
 
+        # Export selected items to NEW SQLite3 DB
+        db_export_act = QAction("&SQLite3 DB", self)
+        db_export_act.setStatusTip("Export selected results to new SQLite3 DB")
+        db_export_act.triggered.connect(self.export_db)
+        export_menu.addAction(db_export_act)
 
         # Menu item for loading DB
         load_db_act = QAction("&Load", self)
@@ -85,7 +91,6 @@ class Window(QMainWindow):
         menuBar.addAction(exitAct)
         # Start a status bar at the bottom of the application
         self.statusBar()
-
 
     def create_grid_layout(self):
         layout = QGridLayout()
@@ -240,6 +245,7 @@ class Window(QMainWindow):
         Export to Bibtex
         Take the selected references and export to Bibtex based on DOI
     '''
+
     def export_bib(self):
         self.statusBar().showMessage("Generating Bibtex")
         if self.tableWidget.rowCount() >= 1:
@@ -271,7 +277,6 @@ class Window(QMainWindow):
         except Exception as e:
             print("Unable to get url {} due to {}.".format(url, e.__class__))
 
-
     async def async_main(self, urls):
         async with aiohttp.ClientSession() as session:
             ret = await asyncio.gather(*[self.async_get(url, session) for url in urls])
@@ -290,6 +295,42 @@ class Window(QMainWindow):
                 print(dict(row))
             cur.close()
             con.close()
+
+    def export_db(self):
+        save_db = QFileDialog.getSaveFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
+        if save_db != '':
+            # Checks if file exists, if not creates the file
+            if not os.path.exists(save_db):
+                con = sqlite3.connect(save_db)
+                con.execute('''CREATE TABLE PUBLICATIONS(
+                            PMC NUMERIC(20) PRIMARY KEY,
+                            TITLE TEXT NOT NULL,
+                            JOURNAL TEXT NOT NULL,
+                            AUTHORS TEXT NOT NULL,
+                            DATE TEXT NOT NULL,
+                            DOI TEXT NOT NULL);''')
+                items = []
+                for row in range(0, self.tableWidget.rowCount()):
+                    litems = {}
+                    if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
+                        litems['PMC'] = self.tableWidget.item(row, 1).text()
+                        litems['TITLE'] = self.tableWidget.item(row, 2).text()
+                        litems['DATE'] = self.tableWidget.item(row, 3).text()
+                        litems['AUTHORS'] = self.tableWidget.item(row, 4).text()
+                        litems['JOURNAL'] = self.tableWidget.item(row, 5).text()
+                        litems['DOI'] = self.tableWidget.item(row, 6).text()
+                    items.append(litems)
+                for item in items:
+                    con.execute('INSERT OR IGNORE INTO PUBLICATIONS '
+                                '(PMC, TITLE, DATE, AUTHORS, JOURNAL, DOI) '
+                                'VALUES (?, ?, ?, ?, ?, ?)',
+                                (item['PMC'], item['TITLE'], item['DATE'],
+                                 item['AUTHORS'], item['JOURNAL'], item['DOI']))
+                con.commit()
+                con.close()
+            else:
+                raise Exception("Error: DB file already exists. Please choose a new file.")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
