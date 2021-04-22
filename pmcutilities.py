@@ -112,7 +112,7 @@ def ncbi_fetch(pmc):
         abstract = "".join(texts.itertext())
     return abstract
 
-def write_to_md(table):
+def write_to_md(table, out_dir):
     items = []
     for row in range(0, table.rowCount()):
         row_items = {}
@@ -132,7 +132,7 @@ def write_to_md(table):
 
         results = src.substitute(d).encode("utf-8")
 
-        filename = f"publication/{item['PMC ID']}/index.md"
+        filename = f"{out_dir}/{item['PMC ID']}/index.md"
         if not os.path.exists(os.path.dirname(filename)):
             try:
                 os.makedirs(os.path.dirname(filename))

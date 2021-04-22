@@ -8,7 +8,7 @@ Usage:
 from setuptools import setup
 
 APP = ['main.py']
-DATA_FILES = []
+DATA_FILES = ['pmcutilities.py', 'template.md']
 OPTIONS = {}
 
 setup(
