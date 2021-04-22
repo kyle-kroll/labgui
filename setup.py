@@ -8,10 +8,11 @@ Usage:
 from setuptools import setup
 
 APP = ['main.py']
-DATA_FILES = ['pmcutilities.py', 'template.md']
+DATA_FILES = ['window.py', 'login.py', 'info', 'template.md', 'pmcutilities.py']
 OPTIONS = {}
 
 setup(
+    name="Reeves Lab Admin",
     app=APP,
     data_files=DATA_FILES,
     options={'py2app': OPTIONS},

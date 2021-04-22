@@ -7,3 +7,4 @@ build/
 __pycache__/
 testing.py
 publication/
+setup.py
