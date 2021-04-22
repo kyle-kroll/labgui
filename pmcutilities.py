@@ -113,6 +113,9 @@ def ncbi_fetch(pmc):
     return abstract
 
 def write_to_md(table, out_dir):
+    # TODO
+    # Need to refactor this so that it calls ncbi_fetch on a list of IDs and then parses them into abstracts
+    # Currently running into API rate limits
     items = []
     for row in range(0, table.rowCount()):
         row_items = {}
@@ -141,7 +144,7 @@ def write_to_md(table, out_dir):
                     raise
         with open(filename, "w") as f:
             f.write(results.decode('ascii', 'ignore'))
-        time.sleep(0.5)
+        time.sleep(1)
 
 
 
