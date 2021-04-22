@@ -12,7 +12,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
     QLineEdit, QHeaderView, QFileDialog, QMessageBox
 
-from pmcutilities import parse_sqlite, update_sqlite, pmc_query, write_results_file, abstract_window
+from pmcutilities import parse_sqlite, update_sqlite, pmc_query, \
+    write_results_file, abstract_window, write_to_md
 
 
 class Window(QMainWindow):
@@ -287,16 +288,17 @@ class Window(QMainWindow):
         self.open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
         items = parse_sqlite(self.open_db)
         self.db_table.setRowCount(len(items))
-        self.db_table.setColumnCount(len(items[0].keys()))
-        self.db_table.setHorizontalHeaderLabels(items[0].keys())
+        self.db_table.setColumnCount(7)
+        self.db_table.setHorizontalHeaderLabels(["Export", "PMC ID", "Title", "Date", "Authors", "Journal", "DOI"])
         # Some of the table components should be allowed to stretch, like title
         # Others should expand to fit the contents
         self.db_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.db_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Interactive)
-        self.db_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.db_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Interactive)
-        self.db_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
-        self.db_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.Stretch)
+        self.db_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        self.db_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Interactive)
+        self.db_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        self.db_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
 
         # Disable editing of cells
         self.db_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -309,6 +311,9 @@ class Window(QMainWindow):
         insert_value_button.clicked.connect(self.insert_values)
         self.centralWidget.layout().addWidget(insert_value_button, 4, 1)
         self.centralWidget.layout().addWidget(self.db_table, 5, 0, 1, 3)
+        export_md_btn = QPushButton("Export to MD")
+        export_md_btn.clicked.connect(self.export_md)
+        self.centralWidget.layout().addWidget(export_md_btn, 6, 0, 1, 3)
         self.update_db_table()
 
     def update_db_table(self):
@@ -375,6 +380,14 @@ class Window(QMainWindow):
                 con.close()
             else:
                 raise Exception("Error: DB file already exists. Please choose a new file.")
+
+    def export_md(self):
+        write_to_md(self.db_table)
+        msg = QMessageBox()
+        msg.setText("Complete!")
+        msg.setInformativeText('Selected entries written to MD.')
+        msg.setWindowTitle("Status")
+        msg.exec_()
 
 
 if __name__ == "__main__":

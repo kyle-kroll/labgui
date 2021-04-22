@@ -5,6 +5,7 @@ import xml.etree.ElementTree as ET
 import requests
 import os
 import errno
+import time
 from string import Template
 
 from PyQt5.QtWidgets import QTableWidgetItem, QDialog, QVBoxLayout, QSizePolicy, QLabel, QScrollArea
@@ -32,13 +33,17 @@ def update_sqlite(db_table, items):
     """Updates the supplied QTableWidget - db_table - with items."""
     db_table.setRowCount(len(items))
     for i in range(0, len(items)):
-        db_table.setItem(i, 0, QTableWidgetItem(str(items[i]['PMC'])))
-        db_table.setItem(i, 1, QTableWidgetItem(items[i]['TITLE']))
-        db_table.setItem(i, 2, QTableWidgetItem(items[i]['JOURNAL']))
-        db_table.setItem(i, 3, QTableWidgetItem(items[i]['AUTHORS']))
-        db_table.setItem(i, 4, QTableWidgetItem(items[i]['DATE']))
-        db_table.setItem(i, 5, QTableWidgetItem(items[i]['DOI']))
-    db_table.sortItems(4, QtCore.Qt.DescendingOrder)
+        chkBoxItem = QTableWidgetItem()
+        chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+        chkBoxItem.setCheckState(QtCore.Qt.Checked)
+        db_table.setItem(i, 0, chkBoxItem)
+        db_table.setItem(i, 1, QTableWidgetItem(str(items[i]['PMC'])))
+        db_table.setItem(i, 2, QTableWidgetItem(items[i]['TITLE']))
+        db_table.setItem(i, 3, QTableWidgetItem(items[i]['DATE']))
+        db_table.setItem(i, 4, QTableWidgetItem(items[i]['AUTHORS']))
+        db_table.setItem(i, 5, QTableWidgetItem(items[i]['JOURNAL']))
+        db_table.setItem(i, 6, QTableWidgetItem(items[i]['DOI']))
+    db_table.sortItems(5, QtCore.Qt.DescendingOrder)
     return db_table
 
 
@@ -107,20 +112,27 @@ def ncbi_fetch(pmc):
         abstract = "".join(texts.itertext())
     return abstract
 
-def write_to_md(items):
+def write_to_md(table):
+    items = []
+    for row in range(0, table.rowCount()):
+        row_items = {}
+        if table.item(row, 0).checkState() == QtCore.Qt.Checked:
+            for col in range(1, table.columnCount()):
+                row_items[table.horizontalHeaderItem(col).text()] = table.item(row, col).text()
+            items.append(row_items)
     with open("./template.md", "r") as f:
         src = Template(f.read())
     for item in items:
-        abstract = ncbi_fetch(item['PMC'])
-        authors = item['AUTHORS'].split(",")
+        abstract = ncbi_fetch(item['PMC ID'])
+        authors = item['Authors'].split(",")
         authors = [x.strip() for x in authors]
         authors = [x.split(" ")[0] for x in authors]
-        d = {'abstract': abstract, 'authors': authors, 'date': item['DATE'],
-             'doi': item['DOI'], 'journal': item['JOURNAL'], 'title': item['TITLE']}
+        d = {'abstract': abstract, 'authors': authors, 'date': item['Date'],
+             'doi': item['DOI'], 'journal': item['Journal'], 'title': item['Title']}
 
         results = src.substitute(d).encode("utf-8")
 
-        filename = f"publication/{item['PMC']}/index.md"
+        filename = f"publication/{item['PMC ID']}/index.md"
         if not os.path.exists(os.path.dirname(filename)):
             try:
                 os.makedirs(os.path.dirname(filename))
@@ -129,5 +141,7 @@ def write_to_md(items):
                     raise
         with open(filename, "w") as f:
             f.write(results.decode('ascii', 'ignore'))
+        time.sleep(0.5)
+
 
 
