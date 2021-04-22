@@ -1,18 +1,19 @@
-import ssl
+import asyncio
+import html
+import os
+import sqlite3
 import sys
 import webbrowser
-import html
-import requests
+import xml.etree.ElementTree as ET
 import aiohttp
-import asyncio
-import sqlite3
-import os
-from pmcutilities import parse_sqlite, update_sqlite
-from PyQt5 import QtCore, QtGui
+import requests
+from PyQt5 import QtCore
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
     QLineEdit, QHeaderView, QFileDialog, QMessageBox, QDialog, QVBoxLayout, QScrollArea, QSizePolicy
-import xml.etree.ElementTree as ET
+
+from pmcutilities import parse_sqlite, update_sqlite, pmc_query, write_results_file
 
 
 class Window(QMainWindow):
@@ -20,7 +21,9 @@ class Window(QMainWindow):
         super().__init__(parent)
         self.db_table = QTableWidget()
         self.tableWidget = QTableWidget()
+        self.onlyInt = QIntValidator()
         self.textBox = QLineEdit()
+        self.query_max = QLineEdit()
         self.title = "Reeves Lab - PMC Fetch"
         self.left = 10
         self.top = 10
@@ -113,7 +116,17 @@ class Window(QMainWindow):
 
         self.textBox.resize(25, 25)
         self.textBox.setStatusTip("Search PMC for this query.")
-        layout.addWidget(self.textBox, 1, 0, 1, 3)
+        layout.addWidget(self.textBox, 1, 0, 1, 1)
+
+        query_label = QLabel("Num. Results to Return")
+        layout.addWidget(query_label, 0, 1)
+
+        self.query_max.resize(25,25)
+        self.query_max.setStatusTip("Max number of results to return.")
+        self.query_max.setText("500")
+        self.query_max.setValidator(self.onlyInt)
+
+        layout.addWidget(self.query_max, 1, 1, 1, 1)
 
         toggle_keep = QPushButton("Check/Uncheck All")
         toggle_keep.clicked.connect(self.check_uncheck)
@@ -165,27 +178,17 @@ class Window(QMainWindow):
     '''
 
     def search_pmc(self):
-        if hasattr(ssl, "_create_unverified_context"):
-            ssl._create_default_https_context = ssl._create_unverified_context
-        search_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pmc" \
-                     f"&term={html.escape(self.textBox.text())}&retmode=json&retmax=500" \
-                     f"&tool=reevestool&email=kylekroll@outlook.com"
-        pmc_ids = requests.get(search_url)
-        pmc_ids = pmc_ids.json()
-        ids = pmc_ids['esearchresult']['idlist']
+        ids = pmc_query(self.textBox.text(), int(self.query_max.text()))
         self.tableWidget.setRowCount(len(ids))
-        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pmc&retmode=json&tool=reevestool&email=kylekroll@outlook,com&id="
-        n = 200
-        pmc_ids = pmc_ids['esearchresult']['idlist']
-        chunks = [pmc_ids[i:i + n] for i in range(0, len(pmc_ids), n)]
         i = 0
+        url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/" \
+              "esummary.fcgi?db=pmc&retmode=json&tool=reevestool&email=kylekroll@outlook,com&id="
+        chunks = [ids[i:i + 200] for i in range(0, len(ids), 200)]
         for chunk in chunks:
             detailed_url = url + ','.join(chunk)
             details = requests.post(detailed_url)
             details = details.json()
-            for x in chunk:
-                # id = details['result']['uids'][i]
-                id = x
+            for id in chunk:
                 chkBoxItem = QTableWidgetItem()
                 chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
                 chkBoxItem.setCheckState(QtCore.Qt.Checked)
@@ -193,7 +196,6 @@ class Window(QMainWindow):
                 self.tableWidget.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
                 self.tableWidget.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
                 self.tableWidget.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
-                # authors = [x['name'].replace(" ", ", ") for x in details['result'][id]['authors']]
                 authors = [x['name'] for x in details['result'][id]['authors']]
                 self.tableWidget.setItem(i, 4, QTableWidgetItem(", ".join(authors)))
                 self.tableWidget.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
@@ -242,24 +244,8 @@ class Window(QMainWindow):
 
     def save_results(self):
         if self.tableWidget.rowCount() >= 1:
-            header = []
-            items = []
             save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Tab-delimited text (*.tdt)')[0]
-            for row in range(0, self.tableWidget.rowCount()):
-                litems = []
-                if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
-                    for col in range(1, self.tableWidget.columnCount()):
-                        litems.append(self.tableWidget.item(row, col).text())
-                        if row == 0:
-                            header.append(self.tableWidget.horizontalHeaderItem(col).text())
-                    items.append(litems)
-            if save_file != '':
-                with open(f"{save_file}", "w+") as f:
-                    f.write("\t".join(header))
-                    f.write("\n")
-                    for it in items:
-                        f.write("\t".join(it))
-                        f.write("\n")
+            write_results_file(save_file, self.tableWidget)
         else:
             QMessageBox.about(self, "", "Please run query before trying to save!")
 
@@ -310,7 +296,6 @@ class Window(QMainWindow):
         self.db_table.setRowCount(len(items))
         self.db_table.setColumnCount(len(items[0].keys()))
         self.db_table.setHorizontalHeaderLabels(items[0].keys())
-
         # Some of the table components should be allowed to stretch, like title
         # Others should expand to fit the contents
         self.db_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
