@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 import requests
 import os
 import errno
-import time
 from string import Template
 
 from PyQt5.QtWidgets import QTableWidgetItem, QDialog, QVBoxLayout, QSizePolicy, QLabel, QScrollArea
