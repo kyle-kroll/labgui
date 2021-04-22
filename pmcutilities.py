@@ -133,9 +133,12 @@ def write_to_md(table, out_dir):
             items.append(row_items)
     with open("./template.md", "r") as f:
         src = Template(f.read())
-    pmc_ids = [item['PMC ID'] for item in items]
-    abstracts = ncbi_fetch(pmc_ids)
-    [print(abstracts.get(k)) for k in pmc_ids]
+    ids = [item['PMC ID'] for item in items]
+    chunks = [ids[i:i + 200] for i in range(0, len(ids), 200)]
+    abstracts = {}
+    for chunk in chunks:
+        abstracts.update(ncbi_fetch(chunk))
+
     for item in items:
         abstract = abstracts[item['PMC ID']]
         authors = item['Authors'].split(",")

@@ -26,7 +26,7 @@ title: >
   $title
 #url_code: '#'
 #url_dataset: '#' 
-#url_pdf: https://doi.org/10.1016/j.celrep.2018.11.020
+#url_pdf: 
 #url_poster: '#'
 #url_project: ""
 #url_slides: ""
