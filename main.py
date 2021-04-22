@@ -7,6 +7,7 @@ import aiohttp
 import asyncio
 import sqlite3
 import os
+from pmcutilities import parse_sqlite, update_sqlite
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
@@ -26,6 +27,8 @@ class Window(QMainWindow):
         self.width = 800
         self.height = 600
         self.checked = True
+        self.search_results = {}
+        self.db_data = {}
         self.centralWidget = QWidget(self)
         self.setCentralWidget(self.centralWidget)
         self.init_ui()
@@ -302,18 +305,8 @@ class Window(QMainWindow):
             return ret
 
     def load_db(self):
-        open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
-        items = []
-        if open_db != '':
-            self.con = sqlite3.connect(open_db)
-            self.con.row_factory = sqlite3.Row
-            cur = self.con.cursor()
-            cur.execute('''SELECT * FROM PUBLICATIONS''')
-
-            rows = cur.fetchall()
-            for row in rows:
-                items.append(dict(row))
-            cur.close()
+        self.open_db = QFileDialog.getOpenFileName(None, 'SQLite3 DB', '', 'SQLite3 (*.sqlite3)')[0]
+        items = parse_sqlite(self.open_db)
         self.db_table.setRowCount(len(items))
         self.db_table.setColumnCount(len(items[0].keys()))
         self.db_table.setHorizontalHeaderLabels(items[0].keys())
@@ -341,24 +334,9 @@ class Window(QMainWindow):
         self.update_db_table()
 
     def update_db_table(self):
-        items = []
-        self.con.row_factory = sqlite3.Row
-        cur = self.con.cursor()
-        cur.execute('''SELECT * FROM PUBLICATIONS''')
+        items = parse_sqlite(self.open_db)
 
-        rows = cur.fetchall()
-        for row in rows:
-            items.append(dict(row))
-        cur.close()
-        self.db_table.setRowCount(len(items))
-        for i in range(0, len(items)):
-            self.db_table.setItem(i, 0, QTableWidgetItem(str(items[i]['PMC'])))
-            self.db_table.setItem(i, 1, QTableWidgetItem(items[i]['TITLE']))
-            self.db_table.setItem(i, 2, QTableWidgetItem(items[i]['JOURNAL']))
-            self.db_table.setItem(i, 3, QTableWidgetItem(items[i]['AUTHORS']))
-            self.db_table.setItem(i, 4, QTableWidgetItem(items[i]['DATE']))
-            self.db_table.setItem(i, 5, QTableWidgetItem(items[i]['DOI']))
-        self.db_table.sortItems(4, QtCore.Qt.DescendingOrder)
+        self.db_table = update_sqlite(self.db_table, items)
 
     def insert_values(self):
         if not self.con:
