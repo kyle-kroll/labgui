@@ -366,7 +366,7 @@ class Window(QMainWindow):
                         litems['DATE'] = self.search_table.item(row, 3).text()
                         litems['AUTHORS'] = self.search_table.item(row, 4).text()
                         litems['JOURNAL'] = self.search_table.item(row, 5).text()
-                        litems['DOI'] = self.search_table.item(row, 6).text()
+                        litems['DOI'] = self.search_table.item(row, 6).text() if self.search_table.item(row, 6) is not None else ""
                         items.append(litems)
                 for item in items:
                     con.execute('INSERT OR IGNORE INTO PUBLICATIONS '

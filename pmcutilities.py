@@ -144,8 +144,9 @@ def write_to_md(table, out_dir):
         authors = item['Authors'].split(",")
         authors = [x.strip() for x in authors]
         authors = [x.split(" ")[0] for x in authors]
+        link = item['DOI'] if item['DOI'] != "" else "https://www.ncbi.nlm.nih.gov/pubmed/PMC" + item['PMC ID']
         d = {'abstract': abstract, 'authors': authors, 'date': item['Date'],
-             'doi': item['DOI'], 'journal': item['Journal'], 'title': item['Title']}
+             'doi': link, 'journal': item['Journal'], 'title': item['Title']}
 
         results = src.substitute(d).encode("utf-8")
 
