@@ -1,26 +1,25 @@
 import asyncio
-import html
 import os
 import sqlite3
 import sys
 import webbrowser
-import xml.etree.ElementTree as ET
+
 import aiohttp
 import requests
 from PyQt5 import QtCore
 from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLabel, \
     QMainWindow, QAction, qApp, QTableWidget, QTableWidgetItem, QGridLayout, \
-    QLineEdit, QHeaderView, QFileDialog, QMessageBox, QDialog, QVBoxLayout, QScrollArea, QSizePolicy
+    QLineEdit, QHeaderView, QFileDialog, QMessageBox
 
-from pmcutilities import parse_sqlite, update_sqlite, pmc_query, write_results_file
+from pmcutilities import parse_sqlite, update_sqlite, pmc_query, write_results_file, abstract_window
 
 
 class Window(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.db_table = QTableWidget()
-        self.tableWidget = QTableWidget()
+        self.search_table = QTableWidget()
         self.onlyInt = QIntValidator()
         self.textBox = QLineEdit()
         self.query_max = QLineEdit()
@@ -36,12 +35,6 @@ class Window(QMainWindow):
         self.setCentralWidget(self.centralWidget)
         self.init_ui()
         self._create_menu_bar()
-
-    def closeEvent(self, *args, **kwargs):
-        try:
-            self.con.close()
-        except AttributeError:
-            pass
 
     def init_ui(self):
         self.setWindowTitle(self.title)
@@ -121,7 +114,7 @@ class Window(QMainWindow):
         query_label = QLabel("Num. Results to Return")
         layout.addWidget(query_label, 0, 1)
 
-        self.query_max.resize(25,25)
+        self.query_max.resize(25, 25)
         self.query_max.setStatusTip("Max number of results to return.")
         self.query_max.setText("500")
         self.query_max.setValidator(self.onlyInt)
@@ -142,25 +135,25 @@ class Window(QMainWindow):
 
     def _create_table_widget(self, row_count, col_count, header_labels):
         # Initialize the table with a single row and the 7 columns we have
-        self.tableWidget.setRowCount(row_count)
-        self.tableWidget.setColumnCount(col_count)
-        self.tableWidget.setHorizontalHeaderLabels(header_labels)
+        self.search_table.setRowCount(row_count)
+        self.search_table.setColumnCount(col_count)
+        self.search_table.setHorizontalHeaderLabels(header_labels)
 
         # Some of the table components should be allowed to stretch, like title
         # Others should expand to fit the contents
-        self.tableWidget.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
-        self.tableWidget.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
+        self.search_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.search_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        self.search_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.search_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        self.search_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.Stretch)
 
         # Disable editing of cells
-        self.tableWidget.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.search_table.setEditTriggers(QTableWidget.NoEditTriggers)
 
         # Link function to double click of cell - if the user double clicks the cell with the DOI link
         # it opens the link in the browser
-        self.tableWidget.cellDoubleClicked.connect(self.open_link)
-        self.centralWidget.layout().addWidget(self.tableWidget, 3, 0, 1, 3)
+        self.search_table.cellDoubleClicked.connect(self.open_link)
+        self.centralWidget.layout().addWidget(self.search_table, 3, 0, 1, 3)
 
     '''
         Reset Application
@@ -169,7 +162,7 @@ class Window(QMainWindow):
 
     def reset_application(self):
         self.textBox.setText("")
-        self.centralWidget.layout().removeWidget(self.tableWidget)
+        self.centralWidget.layout().removeWidget(self.search_table)
         self._create_table_widget()
 
     '''
@@ -179,7 +172,7 @@ class Window(QMainWindow):
 
     def search_pmc(self):
         ids = pmc_query(self.textBox.text(), int(self.query_max.text()))
-        self.tableWidget.setRowCount(len(ids))
+        self.search_table.setRowCount(len(ids))
         i = 0
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/" \
               "esummary.fcgi?db=pmc&retmode=json&tool=reevestool&email=kylekroll@outlook,com&id="
@@ -192,18 +185,18 @@ class Window(QMainWindow):
                 chkBoxItem = QTableWidgetItem()
                 chkBoxItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
                 chkBoxItem.setCheckState(QtCore.Qt.Checked)
-                self.tableWidget.setItem(i, 0, chkBoxItem)
-                self.tableWidget.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
-                self.tableWidget.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
-                self.tableWidget.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
+                self.search_table.setItem(i, 0, chkBoxItem)
+                self.search_table.setItem(i, 1, QTableWidgetItem(details['result'][id]['uid']))
+                self.search_table.setItem(i, 2, QTableWidgetItem(details['result'][id]['title']))
+                self.search_table.setItem(i, 3, QTableWidgetItem(details['result'][id]['pubdate']))
                 authors = [x['name'] for x in details['result'][id]['authors']]
-                self.tableWidget.setItem(i, 4, QTableWidgetItem(", ".join(authors)))
-                self.tableWidget.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
+                self.search_table.setItem(i, 4, QTableWidgetItem(", ".join(authors)))
+                self.search_table.setItem(i, 5, QTableWidgetItem(details['result'][id]['fulljournalname']))
                 for item in details['result'][id]['articleids']:
                     if item['idtype'] == 'doi':
-                        self.tableWidget.setItem(i, 6, QTableWidgetItem(f"https://doi.org/{item['value']}"))
+                        self.search_table.setItem(i, 6, QTableWidgetItem(f"https://doi.org/{item['value']}"))
                 i = i + 1
-        self.tableWidget.sortItems(3, QtCore.Qt.DescendingOrder)
+        self.search_table.sortItems(3, QtCore.Qt.DescendingOrder)
         self.statusBar().showMessage("Search complete.")
 
     '''
@@ -213,14 +206,14 @@ class Window(QMainWindow):
 
     def open_link(self, row, column):
         try:
-            item = self.tableWidget.item(row, column).text()
+            item = self.search_table.item(row, column).text()
             if item.startswith("https"):
                 webbrowser.open(item)
             else:
-                pmc = self.tableWidget.item(row, 1).text()
-                auths = self.tableWidget.item(row, 4).text()
-                title = self.tableWidget.item(row, 2).text()
-                self.help_window(pmc, auths, title)
+                pmc = self.search_table.item(row, 1).text()
+                auths = self.search_table.item(row, 4).text()
+                title = self.search_table.item(row, 2).text()
+                abstract_window(self, pmc, auths, title)
         except AttributeError:
             pass
 
@@ -230,11 +223,11 @@ class Window(QMainWindow):
     '''
 
     def check_uncheck(self):
-        for row in range(0, self.tableWidget.rowCount()):
+        for row in range(0, self.search_table.rowCount()):
             if self.checked:
-                self.tableWidget.item(row, 0).setCheckState(0)
+                self.search_table.item(row, 0).setCheckState(0)
             else:
-                self.tableWidget.item(row, 0).setCheckState(2)
+                self.search_table.item(row, 0).setCheckState(2)
         self.checked = not self.checked
 
     '''
@@ -243,9 +236,9 @@ class Window(QMainWindow):
     '''
 
     def save_results(self):
-        if self.tableWidget.rowCount() >= 1:
+        if self.search_table.rowCount() >= 1:
             save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Tab-delimited text (*.tdt)')[0]
-            write_results_file(save_file, self.tableWidget)
+            write_results_file(save_file, self.search_table)
         else:
             QMessageBox.about(self, "", "Please run query before trying to save!")
 
@@ -256,7 +249,7 @@ class Window(QMainWindow):
 
     def export_bib(self):
         self.statusBar().showMessage("Generating Bibtex")
-        if self.tableWidget.rowCount() >= 1:
+        if self.search_table.rowCount() >= 1:
             items = self.get_bibs()
             save_file = QFileDialog.getSaveFileName(None, 'Title', '', 'Bibtex (*.bib)')[0]
             if save_file != '':
@@ -268,9 +261,9 @@ class Window(QMainWindow):
 
     def get_bibs(self):
         websites = []
-        for row in range(0, self.tableWidget.rowCount()):
-            if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
-                url = "/".join(self.tableWidget.item(row, 6).text().split("/")[3:5])
+        for row in range(0, self.search_table.rowCount()):
+            if self.search_table.item(row, 0).checkState() == QtCore.Qt.Checked:
+                url = "/".join(self.search_table.item(row, 6).text().split("/")[3:5])
                 url = f"http://api.crossref.org/works/{url}/transform/application/x-bibtex"
                 websites.append(url)
         urls = websites
@@ -329,15 +322,15 @@ class Window(QMainWindow):
             sys.exit()
         else:
             items = []
-            for row in range(0, self.tableWidget.rowCount()):
+            for row in range(0, self.search_table.rowCount()):
                 litems = {}
-                if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
-                    litems['PMC'] = self.tableWidget.item(row, 1).text()
-                    litems['TITLE'] = self.tableWidget.item(row, 2).text()
-                    litems['DATE'] = self.tableWidget.item(row, 3).text()
-                    litems['AUTHORS'] = self.tableWidget.item(row, 4).text()
-                    litems['JOURNAL'] = self.tableWidget.item(row, 5).text()
-                    litems['DOI'] = self.tableWidget.item(row, 6).text()
+                if self.search_table.item(row, 0).checkState() == QtCore.Qt.Checked:
+                    litems['PMC'] = self.search_table.item(row, 1).text()
+                    litems['TITLE'] = self.search_table.item(row, 2).text()
+                    litems['DATE'] = self.search_table.item(row, 3).text()
+                    litems['AUTHORS'] = self.search_table.item(row, 4).text()
+                    litems['JOURNAL'] = self.search_table.item(row, 5).text()
+                    litems['DOI'] = self.search_table.item(row, 6).text()
                     items.append(litems)
             for item in items:
                 self.con.execute('INSERT OR IGNORE INTO PUBLICATIONS '
@@ -362,15 +355,15 @@ class Window(QMainWindow):
                             DATE TEXT NOT NULL,
                             DOI TEXT NOT NULL);''')
                 items = []
-                for row in range(0, self.tableWidget.rowCount()):
+                for row in range(0, self.search_table.rowCount()):
                     litems = {}
-                    if self.tableWidget.item(row, 0).checkState() == QtCore.Qt.Checked:
-                        litems['PMC'] = self.tableWidget.item(row, 1).text()
-                        litems['TITLE'] = self.tableWidget.item(row, 2).text()
-                        litems['DATE'] = self.tableWidget.item(row, 3).text()
-                        litems['AUTHORS'] = self.tableWidget.item(row, 4).text()
-                        litems['JOURNAL'] = self.tableWidget.item(row, 5).text()
-                        litems['DOI'] = self.tableWidget.item(row, 6).text()
+                    if self.search_table.item(row, 0).checkState() == QtCore.Qt.Checked:
+                        litems['PMC'] = self.search_table.item(row, 1).text()
+                        litems['TITLE'] = self.search_table.item(row, 2).text()
+                        litems['DATE'] = self.search_table.item(row, 3).text()
+                        litems['AUTHORS'] = self.search_table.item(row, 4).text()
+                        litems['JOURNAL'] = self.search_table.item(row, 5).text()
+                        litems['DOI'] = self.search_table.item(row, 6).text()
                         items.append(litems)
                 for item in items:
                     con.execute('INSERT OR IGNORE INTO PUBLICATIONS '
@@ -382,39 +375,6 @@ class Window(QMainWindow):
                 con.close()
             else:
                 raise Exception("Error: DB file already exists. Please choose a new file.")
-
-
-    def help_window(self, pmc, authors, title):
-        # If you pass a parent (self) will block the Main Window,
-        # and if you do not pass both will be independent,
-        # I recommend you try both cases.
-        req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + pmc).content
-        tree = ET.ElementTree(ET.fromstring(req))
-        root = tree.getroot()
-        all_text = root.findall('.//abstract/p')
-        abstract = ""
-        for texts in all_text:
-            abstract = "".join(texts.itertext())
-
-        abstract_label = QLabel(abstract)
-        abstract_label.setWordWrap(True)
-        abstract_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
-        widget = QDialog(self)
-        layout = QVBoxLayout()
-        auths = authors.split(",")[0] + " et al."
-        layout.addWidget(QLabel("Title: " + title))
-        layout.addWidget(QLabel("Authors: " + authors))
-
-        test = QScrollArea()
-        test.setWidget(abstract_label)
-
-        layout.addWidget(test)
-
-        widget.setLayout(layout)
-        widget.resize(abstract_label.width() + 50, abstract_label.height() + 50)
-
-        widget.setWindowTitle("Abstract")
-        widget.show()
 
 
 if __name__ == "__main__":
