@@ -79,8 +79,7 @@ def write_results_file(filename, table):
 
 def abstract_window(self, pmc, authors, title):
     """Opens a new window with the abstract for the selected item."""
-
-    abstract_label = QLabel(ncbi_fetch(pmc))
+    abstract_label = QLabel(ncbi_fetch([pmc]).get(pmc))
     abstract_label.setWordWrap(True)
     abstract_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Minimum)
     widget = QDialog(self)
@@ -103,14 +102,23 @@ def abstract_window(self, pmc, authors, title):
     return None
 
 def ncbi_fetch(pmc):
-    req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + pmc).content
+    req = requests.get("https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&retmode=xml&id=" + ",".join(pmc)).content
     tree = ET.ElementTree(ET.fromstring(req))
     root = tree.getroot()
-    all_text = root.findall('.//abstract/p')
-    abstract = ""
-    for texts in all_text:
-        abstract = "".join(texts.itertext())
-    return abstract
+
+    articles = root.findall('article')
+    abstracts = {}
+    for article in articles:
+        pmc_id = article.findall(".//article-id")
+        for id in pmc_id:
+            if id.attrib['pub-id-type'] == 'pmc':
+                pmc_id = id.text
+        all_text = article.findall('.//abstract/p')
+        abstract = ""
+        for texts in all_text:
+            abstract = "".join(texts.itertext())
+        abstracts[pmc_id] = abstract
+    return abstracts
 
 def write_to_md(table, out_dir):
     # TODO
@@ -125,8 +133,11 @@ def write_to_md(table, out_dir):
             items.append(row_items)
     with open("./template.md", "r") as f:
         src = Template(f.read())
+    pmc_ids = [item['PMC ID'] for item in items]
+    abstracts = ncbi_fetch(pmc_ids)
+    [print(abstracts.get(k)) for k in pmc_ids]
     for item in items:
-        abstract = ncbi_fetch(item['PMC ID'])
+        abstract = abstracts[item['PMC ID']]
         authors = item['Authors'].split(",")
         authors = [x.strip() for x in authors]
         authors = [x.split(" ")[0] for x in authors]
@@ -144,7 +155,7 @@ def write_to_md(table, out_dir):
                     raise
         with open(filename, "w") as f:
             f.write(results.decode('ascii', 'ignore'))
-        time.sleep(1)
+
 
 
 
